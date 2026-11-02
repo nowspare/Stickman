@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>STICKMAN — Kage vs Luma</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:#f5f5f0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:#111;user-select:none}
+  #stage{display:block;width:100vw;height:100vh;touch-action:none;background:#f5f5f0}
+
+  /* ---------------- HUD ---------------- */
+  #hud{position:fixed;top:0;left:0;right:0;z-index:10;pointer-events:none;
+    display:flex;align-items:flex-start;gap:14px;padding:12px 16px}
+  .side{flex:1;display:flex;flex-direction:column;gap:5px;max-width:380px}
+  .side.r{align-items:flex-end}
+  .name{font-size:10px;letter-spacing:.30em;font-weight:800;text-transform:uppercase}
+  .name .tag{font-size:8px;letter-spacing:.16em;opacity:.42;margin-left:8px;font-weight:700}
+  .bar{width:100%;height:9px;border-radius:5px;background:rgba(0,0,0,.08);
+    overflow:hidden;border:1px solid rgba(0,0,0,.14);position:relative}
+  .bar i{display:block;height:100%;width:100%;transition:width .12s linear;
+    border-radius:5px;transform-origin:left}
+  .side.r .bar i{transform-origin:right;margin-left:auto}
+  #barK{background:#000}
+  #barL{background:#111}
+  #mid{width:80px;text-align:center;display:flex;flex-direction:column;gap:2px;align-items:center}
+  #roundNum{font-size:18px;font-weight:900;letter-spacing:.02em;line-height:1}
+  #roundLbl{font-size:7px;letter-spacing:.36em;opacity:.4;font-weight:800}
+  #scoreBoard{font-size:9px;letter-spacing:.12em;opacity:.5;font-weight:800;
+    font-variant-numeric:tabular-nums}
+
+  /* ---------------- banner ---------------- */
+  #banner{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:15;pointer-events:none;opacity:0;transition:opacity .18s}
+  #banner.show{opacity:1}
+  #banner span{font-size:clamp(44px,10vw,120px);font-weight:900;letter-spacing:.04em;
+    color:#000;text-shadow:0 4px 0 rgba(0,0,0,.06);
+    transform:scale(.86);transition:transform .22s cubic-bezier(.2,1.6,.4,1)}
+  #banner.show span{transform:scale(1)}
+
+  /* ---------------- transport ---------------- */
+  #transport{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:20;
+    display:flex;align-items:center;gap:5px;padding:7px;border-radius:15px;
+    background:rgba(255,255,255,.94);border:1px solid rgba(0,0,0,.10);
+    backdrop-filter:blur(14px);box-shadow:0 10px 34px rgba(0,0,0,.10);
+    max-width:calc(100vw - 24px);flex-wrap:wrap;justify-content:center}
+  button{font:inherit;font-size:11px;letter-spacing:.06em;color:#333;cursor:pointer;
+    background:rgba(0,0,0,.045);border:1px solid rgba(0,0,0,.10);
+    padding:7px 11px;border-radius:9px;font-weight:700;
+    transition:background .15s,border-color .15s,color .15s,transform .1s}
+  button:hover{background:rgba(0,0,0,.10);border-color:rgba(0,0,0,.26);color:#000}
+  button:active{transform:scale(.95)}
+  button.on{background:#000;border-color:#000;color:#fff}
+  .sep{width:1px;height:20px;background:rgba(0,0,0,.12);margin:0 3px}
+  .spd{padding:6px 8px;min-width:36px;font-variant-numeric:tabular-nums}
+
+  /* ---------------- settings ---------------- */
+  #panelToggle{position:fixed;top:11px;right:14px;z-index:30}
+  #panel{position:fixed;top:11px;right:14px;width:238px;max-height:calc(100vh - 110px);
+    overflow-y:auto;z-index:29;padding:13px;border-radius:15px;
+    background:rgba(255,255,255,.97);border:1px solid rgba(0,0,0,.10);
+    backdrop-filter:blur(14px);box-shadow:0 16px 50px rgba(0,0,0,.14);
+    transition:transform .22s cubic-bezier(.2,.8,.2,1),opacity .18s;transform-origin:top right}
+  #panel.hide{transform:scale(.94) translateY(-8px);opacity:0;pointer-events:none}
+  #panel h3{margin:0 0 9px;font-size:9px;letter-spacing:.26em;text-transform:uppercase;
+    color:#8a8a80;font-weight:800}
+  #panel h3:not(:first-child){margin-top:14px}
+  .row{margin-bottom:10px}
+  .row label{display:flex;justify-content:space-between;font-size:10px;
+    letter-spacing:.06em;color:#555;margin-bottom:4px;font-weight:700}
+  .row label b{color:#000;font-weight:800;font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;-webkit-appearance:none;height:3px;border-radius:3px;
+    background:rgba(0,0,0,.14);outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;
+    border-radius:50%;background:#000;cursor:pointer;box-shadow:0 0 0 3px rgba(0,0,0,.10)}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radius:50%;
+    background:#000;cursor:pointer}
+  select{width:100%;font:inherit;font-size:11px;color:#000;padding:6px 8px;border-radius:8px;
+    background:#fff;border:1px solid rgba(0,0,0,.16);outline:none;cursor:pointer;font-weight:700}
+
+  @media (max-width:760px){
+    #panel{width:calc(100vw - 32px);max-height:56vh;top:10px;right:16px}
+    #transport{gap:3px;padding:5px;bottom:8px}
+    button{padding:6px 8px;font-size:10px}
+    #mid{width:58px}
+    #roundNum{font-size:15px}
+    #hud{padding:8px 10px}
+  }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+
+<div id="hud">
+  <div class="side l">
+    <div class="name">KAGE<span class="tag">power</span></div>
+    <div class="bar"><i id="barK"></i></div>
+  </div>
+  <div id="mid">
+    <div id="roundNum">1</div>
+    <div id="roundLbl">ROUND</div>
+    <div id="scoreBoard">0 — 0</div>
+  </div>
+  <div class="side r">
+    <div class="name"><span class="tag">speed</span>LUMA</div>
+    <div class="bar"><i id="barL"></i></div>
+  </div>
+</div>
+
+<div id="banner"><span id="bannerTxt">ROUND 1</span></div>
+
+<button id="panelToggle">⚙</button>
+
+<div id="panel" class="hide">
+  <h3>Fighters</h3>
+  <div class="row">
+    <label>Count <b id="vCount">2</b></label>
+    <input type="range" id="cCount" min="2" max="6" step="1" value="2">
+  </div>
+  <div class="row">
+    <label>Size <b id="vSize">1.15</b></label>
+    <input type="range" id="cSize" min="0.7" max="1.8" step="0.05" value="1.15">
+  </div>
+  <div class="row">
+    <label>Intensity <b id="vInt">1.00</b></label>
+    <input type="range" id="cInt" min="0.2" max="2.5" step="0.05" value="1">
+  </div>
+  <div class="row">
+    <label>Attack rate <b id="vRate">1.00</b></label>
+    <input type="range" id="cRate" min="0.3" max="2.5" step="0.05" value="1">
+  </div>
+  <div class="row">
+    <label>Gravity <b id="vGrav">1.00</b></label>
+    <input type="range" id="cGrav" min="0.3" max="2.2" step="0.05" value="1">
+  </div>
+  <div class="row">
+    <label>Camera zoom <b id="vZoom">1.00</b></label>
+    <input type="range" id="cZoom" min="0.5" max="2" step="0.05" value="1">
+  </div>
+  <div class="row">
+    <label>Speed <b id="vSpeed">1.00</b></label>
+    <input type="range" id="cSpeed" min="0.25" max="4" step="0.05" value="1">
+  </div>
+
+  <h3>Stage</h3>
+  <div class="row">
+    <select id="cBg">
+      <option value="white" selected>Clean paper</option>
+      <option value="paper">Grid paper</option>
+      <option value="black">Black cinematic</option>
+      <option value="arena">Underground arena</option>
+      <option value="rooftop">City rooftop</option>
+      <option value="dojo">Training dojo</option>
+    </select>
+  </div>
+</div>
+
+<div id="transport">
+  <button id="bPlay" class="on">❚❚ PAUSE</button>
+  <div class="sep"></div>
+  <button class="spd" data-spd="0.5">0.5x</button>
+  <button class="spd on" data-spd="1">1x</button>
+  <button class="spd" data-spd="2">2x</button>
+  <button class="spd" data-spd="4">4x</button>
+  <div class="sep"></div>
+  <button id="bSlow">SLOW-MO</button>
+  <button id="bRandom">RANDOM</button>
+  <button id="bReset">RESET</button>
+  <button id="bFull">⛶</button>
+</div>
+
+<script>
+"use strict";
+/* =====================================================================
+   STICKMAN — automatic fight studio
+   Reference style: thick rounded-capped strokes, unfilled head ring.
+   Two kits: KAGE (pure black · power) vs LUMA (white with black rim · speed).
+   ===================================================================== */
+
+/* --------------------------------------------------------------- setup */
+const cv  = document.getElementById('stage');
+const ctx = cv.getContext('2d', { alpha:false });
+let W = 0, H = 0, DPR = 1;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = cv.clientWidth; H = cv.clientHeight;
+  cv.width  = Math.floor(W * DPR);
+  cv.height = Math.floor(H * DPR);
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* --------------------------------------------------------------- config */
+const cfg = {
+  count: 2, size: 1.15, intensity: 1, rate: 1,
+  gravity: 1, zoom: 1, speed: 1, bg: 'white'
+};
+const GRAV = () => 1500 * cfg.gravity;
+
+/* --------------------------------------------------------------- math */
+const rand = (a,b) => a + Math.random()*(b-a);
+const clamp = (v,a,b) => v<a?a:v>b?b:v;
+const lerp = (a,b,t) => a + (b-a)*t;
+const easeInOut = t => t<.5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2;
+const easeOut = t => 1 - Math.pow(1-t, 3);
+const pick = a => a[(Math.random()*a.length)|0];
+const dirD = a => ({ x: Math.sin(a), y: Math.cos(a) });
+const add  = (p, d, s) => ({ x: p.x + d.x*s, y: p.y + d.y*s });
+
+/* ------------------------------------------------------- pose library */
+const BASE = {
+  b:0, l:0, t:0.06, hd:0,
+  aLu:0.15, aLf:2.20, aRu:0.55, aRf:2.00,
+  lLu:-0.30, lLf:-0.15, lRu:0.35, lRf:-0.25, r:0
+};
+const CLIPS = {};
+
+function clip(id, dur, keys, opt){
+  const o = opt || {};
+  CLIPS[id] = {
+    id, dur,
+    lunge: o.lunge || 0,
+    air: !!o.air,
+    invuln: !!o.invuln,
+    loop: !!o.loop,
+    hits: (o.hits || []).map(h => Object.assign(
+      { knock:120, type:'light', color:null }, h)),
+    events: (o.events || []).slice(),
+    keys: keys.map(k => ({ t:k[0], p: Object.assign({}, BASE, k[1]) }))
+  };
+}
+
+/* ---- locomotion ----------------------------------------------------- */
+clip('idle', 1.10, [[0,{}],[.5,{b:3,t:.10,hd:-.04}],[1,{}]], { loop:true });
+clip('walk', .44, [
+  [0,{lRu:.55,lRf:-.55,lLu:-.42,lLf:-.10,b:2}],
+  [.5,{lRu:.05,lRf:-.15,lLu:-.05,lLf:-.28,b:6}],
+  [1,{lRu:.55,lRf:-.55,lLu:-.42,lLf:-.10,b:2}]
+], { lunge:26 });
+clip('walkBack', .46, [
+  [0,{lRu:.30,lRf:-.40,lLu:-.45,lLf:-.05,b:2,t:-.06}],
+  [.5,{lRu:.10,lRf:-.20,lLu:-.15,lLf:-.30,b:6,t:-.10}],
+  [1,{lRu:.30,lRf:-.40,lLu:-.45,lLf:-.05,b:2,t:-.06}]
+], { lunge:-24 });
+clip('dash', .30, [
+  [0,{t:.10,lRu:.50,lRf:-.60,lLu:-.50,lLf:-.10}],
+  [.4,{t:.34,b:5,lRu:.70,lRf:-.55,lLu:-.65,lLf:-.05,aLu:.9,aLf:1.6}],
+  [1,{t:.10,lRu:.30,lRf:-.30,lLu:-.25,lLf:-.20}]
+], { lunge:120 });
+clip('jump', .46, [
+  [0,{b:16,lRu:.55,lRf:-.9,lLu:-.4,lLf:-.7}],
+  [.35,{b:-4,lRu:.9,lRf:-1.5,lLu:-.2,lLf:-1.2,t:.2}],
+  [1,{b:-2,lRu:.7,lRf:-1.2,lLu:-.3,lLf:-1.0,t:.16}]
+], { air:true });
+clip('land', .26, [
+  [0,{b:-2,lRu:.7,lRf:-1.2,lLu:-.3,lLf:-1.0}],
+  [.4,{b:20,t:.24,lRu:.75,lRf:-1.3,lLu:-.5,lLf:-.9}],
+  [1,{}]
+]);
+clip('taunt', .90, [
+  [0,{}],
+  [.3,{t:-.16,aRu:-.8,aRf:1.0,aLu:-.6,aLf:1.2,hd:-.12}],
+  [.7,{t:-.10,aRu:-1.1,aRf:.6,aLu:-.9,aLf:.9,hd:-.08}],
+  [1,{}]
+]);
+
+/* ---- strikes -------------------------------------------------------- */
+clip('jab', .26, [
+  [0,{}],
+  [.28,{t:.16,aRu:1.45,aRf:.12,aLu:.20,aLf:2.30,l:5}],
+  [.46,{t:.20,aRu:1.52,aRf:.02,l:9}],
+  [1,{}]
+], { hits:[{t:.34,dmg:4,reach:84,knock:90,type:'light'}] });
+
+clip('cross', .34, [
+  [0,{t:.02}],
+  [.30,{t:.28,aLu:1.48,aLf:.10,aRu:.95,aRf:1.7,l:6,hd:.05}],
+  [.48,{t:.34,aLu:1.55,aLf:.00,aRu:1.00,aRf:1.6,l:12}],
+  [1,{}]
+], { hits:[{t:.40,dmg:7,reach:90,knock:150,type:'light'}] });
+
+clip('hook', .40, [
+  [0,{}],
+  [.24,{t:.02,aRu:1.20,aRf:1.25,l:3,hd:.08}],
+  [.44,{t:.26,aRu:1.75,aRf:.85,l:10,hd:.14}],
+  [1,{}]
+], { hits:[{t:.44,dmg:8,reach:82,knock:165,type:'mid'}] });
+
+clip('overhand', .50, [
+  [0,{t:-.10}],
+  [.20,{t:-.22,aRu:-.55,aRf:1.20,b:-4,hd:-.10}],
+  [.46,{t:.42,aRu:1.70,aRf:.20,l:13,b:5,hd:.16}],
+  [1,{}]
+], { lunge:20, hits:[{t:.46,dmg:11,reach:88,knock:240,type:'heavy'}] });
+
+clip('uppercut', .42, [
+  [0,{t:.10,b:4}],
+  [.20,{t:.22,aRu:1.10,aRf:1.30,b:9}],
+  [.40,{t:-.12,aRu:2.40,aRf:.50,b:-6,l:7,hd:-.14}],
+  [1,{}]
+], { hits:[{t:.40,dmg:10,reach:74,knock:190,type:'heavy'}] });
+
+clip('bodyShot', .32, [
+  [0,{}],
+  [.28,{t:.34,aRu:1.28,aRf:.42,b:7,l:5}],
+  [.46,{t:.40,aRu:1.34,aRf:.28,b:9,l:8}],
+  [1,{}]
+], { hits:[{t:.40,dmg:6,reach:76,knock:100,type:'light'}] });
+
+clip('elbow', .30, [
+  [0,{}],
+  [.24,{t:.10,aRu:.90,aRf:2.55,l:4}],
+  [.44,{t:.36,aRu:1.32,aRf:2.45,l:9}],
+  [1,{}]
+], { lunge:14, hits:[{t:.40,dmg:9,reach:66,knock:140,type:'mid'}] });
+
+clip('frontKick', .42, [
+  [0,{}],
+  [.20,{t:-.14,lRu:1.30,lRf:-1.45,lLu:-.14,lLf:-.10,b:-3}],
+  [.40,{t:-.26,lRu:1.60,lRf:-.10,lLu:-.10,lLf:-.10,aLu:-.3,aLf:1.4}],
+  [1,{}]
+], { lunge:16, hits:[{t:.40,dmg:8,reach:100,knock:190,type:'mid'}] });
+
+clip('roundhouse', .52, [
+  [0,{}],
+  [.20,{t:-.20,r:-.10,lRu:.60,lRf:-1.60,lLu:-.20,lLf:-.22,b:-3}],
+  [.42,{t:-.34,r:-.26,lRu:1.55,lRf:-.45,lLu:-.32,lLf:-.14,aLu:-.7,aLf:1.1}],
+  [1,{}]
+], { lunge:22, hits:[{t:.42,dmg:12,reach:108,knock:270,type:'heavy'}] });
+
+clip('lowKick', .38, [
+  [0,{}],
+  [.20,{t:.06,lRu:.55,lRf:-1.20,lLu:-.18,lLf:-.14}],
+  [.40,{t:-.02,lRu:1.15,lRf:-.30,lLu:-.14,lLf:-.14,b:6}],
+  [1,{}]
+], { lunge:14, hits:[{t:.40,dmg:7,reach:96,knock:130,type:'mid'}] });
+
+clip('highKick', .55, [
+  [0,{}],
+  [.22,{t:-.24,lRu:1.10,lRf:-1.70,lLu:-.22,lLf:-.16,b:-4}],
+  [.46,{t:-.40,lRu:2.20,lRf:-.25,lLu:-.30,lLf:-.12,aLu:-.9,aLf:.9}],
+  [1,{}]
+], { lunge:20, hits:[{t:.46,dmg:13,reach:104,knock:290,type:'heavy'}] });
+
+clip('spinKick', .62, [
+  [0,{}],
+  [.22,{t:-.10,r:-.30,lRu:.80,lRf:-1.40,lLu:-.25,lLf:-.20,b:-3}],
+  [.48,{t:-.30,r:-.62,lRu:1.62,lRf:-.30,lLu:-.35,lLf:-.10}],
+  [.72,{t:-.10,r:-.20,lRu:1.20,lRf:-.70}],
+  [1,{}]
+], { lunge:30, hits:[{t:.48,dmg:14,reach:112,knock:320,type:'heavy'}] });
+
+clip('flyingKick', .70, [
+  [0,{b:14,lRu:.70,lRf:-1.3,lLu:-.4,lLf:-.9}],
+  [.24,{b:-6,t:.24,lRu:1.30,lRf:-1.20,lLu:-.7,lLf:-.6}],
+  [.44,{b:-4,t:.30,lRu:1.62,lRf:-.15,lLu:-.55,lLf:-.9,aLu:-.9,aLf:1.0}],
+  [1,{b:6,t:.10,lRu:.9,lRf:-1.0,lLu:-.3,lLf:-.7}]
+], { air:true, lunge:128, hits:[{t:.44,dmg:15,reach:128,knock:340,type:'heavy'}] });
+
+clip('axeKick', .56, [
+  [0,{}],
+  [.20,{t:-.30,lRu:2.60,lRf:-1.30,lLu:-.20,lLf:-.18,b:-3}],
+  [.44,{t:.34,lRu:.80,lRf:-.10,lLu:-.24,lLf:-.14,b:6}],
+  [1,{}]
+], { lunge:18, hits:[{t:.44,dmg:13,reach:92,knock:300,type:'heavy'}] });
+
+clip('backKick', .48, [
+  [0,{}],
+  [.22,{t:.20,lRu:-.70,lRf:-1.30,lLu:.20,lLf:-.20}],
+  [.44,{t:.30,lRu:-1.45,lRf:-.10,lLu:.24,lLf:-.14,l:-6}],
+  [1,{}]
+], { lunge:-14, hits:[{t:.44,dmg:11,reach:104,knock:250,type:'heavy'}] });
+
+clip('knee', .34, [
+  [0,{}],
+  [.22,{t:.14,lRu:1.05,lRf:-2.35,lLu:-.14,lLf:-.10,b:-3,aRu:1.2,aRf:1.7}],
+  [.44,{t:.22,lRu:1.20,lRf:-2.45,b:-6,l:8}],
+  [1,{}]
+], { lunge:22, hits:[{t:.42,dmg:9,reach:62,knock:130,type:'mid'}] });
+
+/* ---- defense -------------------------------------------------------- */
+clip('blockHigh', .30, [
+  [0,{}],
+  [.25,{t:-.14,aRu:.85,aRf:2.30,aLu:.75,aLf:2.45,b:3}],
+  [1,{t:-.05,aRu:.65,aRf:2.15,aLu:.45,aLf:2.30}]
+]);
+clip('blockLow', .30, [
+  [0,{}],
+  [.25,{t:.30,aRu:1.00,aRf:2.10,aLu:.90,aLf:2.25,b:10}],
+  [1,{t:.18,b:6}]
+]);
+clip('slip', .30, [
+  [0,{}],
+  [.35,{t:-.42,b:6,l:-6,hd:-.18,aRu:.4,aRf:2.3}],
+  [1,{t:-.15}]
+], { lunge:-34, invuln:true });
+clip('duck', .34, [
+  [0,{}],
+  [.35,{b:20,t:.42,hd:-.2,aRu:1.1,aRf:1.9}],
+  [1,{b:4}]
+], { lunge:-18, invuln:true });
+clip('backflip', .62, [
+  [0,{b:18,t:.2}],
+  [.20,{b:-6,r:-1.4,lRu:1.2,lRf:-1.9,lLu:.9,lLf:-1.9}],
+  [.55,{b:-6,r:-4.6,lRu:1.1,lRf:-1.8,lLu:.8,lLf:-1.8}],
+  [.85,{b:14,r:-6.283,lRu:.7,lRf:-1.3,lLu:-.2,lLf:-.8}],
+  [1,{r:-6.283}]
+], { air:true, lunge:-80, invuln:true });
+clip('slide', .58, [
+  [0,{b:10,t:.18}],
+  [.22,{b:34,t:.30,lRu:1.30,lRf:-.10,lLu:.30,lLf:-1.60}],
+  [.62,{b:36,t:.24,lRu:1.35,lRf:-.05,lLu:.30,lLf:-1.65}],
+  [1,{b:12,t:.10,lRu:.6,lRf:-.7,lLu:-.2,lLf:-.5}]
+], { lunge:96, invuln:true });
+
+/* ---- grappling ------------------------------------------------------ */
+clip('grab', .34, [
+  [0,{}],
+  [.30,{t:.24,aRu:1.50,aRf:.10,aLu:1.45,aLf:.14,l:12}],
+  [1,{t:.16,aRu:1.40,aRf:.20,aLu:1.35,aLf:.25,l:8}]
+], { lunge:22 });
+clip('shove', .30, [
+  [0,{t:.10}],
+  [.24,{t:.18,aRu:1.50,aRf:.05,aLu:1.45,aLf:.10,l:10}],
+  [.50,{t:.30,aRu:1.60,aRf:.00,aLu:1.55,aLf:.05,l:16}],
+  [1,{}]
+], { lunge:30, hits:[{t:.50,dmg:5,reach:74,knock:260,type:'mid'}] });
+clip('throw', .72, [
+  [0,{t:.16,aRu:1.40,aRf:.20,aLu:1.35,aLf:.25}],
+  [.22,{t:-.18,aRu:2.20,aRf:.30,aLu:2.10,aLf:.35,b:6}],
+  [.48,{t:.55,aRu:1.90,aRf:.10,aLu:1.85,aLf:.15,l:14,b:-4}],
+  [1,{}]
+], { hits:[{t:.48,dmg:16,reach:96,knock:420,type:'grapple'}] });
+clip('suplex', .84, [
+  [0,{t:.16,aRu:1.40,aRf:.20,aLu:1.35,aLf:.25}],
+  [.24,{t:-.30,b:16,aRu:2.30,aRf:.40,aLu:2.20,aLf:.45}],
+  [.52,{t:-.90,b:-10,r:-.35,aRu:2.90,aRf:.20,aLu:2.80,aLf:.25}],
+  [.74,{t:.40,b:14,r:-.1,aRu:1.5,aRf:.6}],
+  [1,{}]
+], { hits:[{t:.52,dmg:18,reach:88,knock:380,type:'grapple'}] });
+
+/* ---- reactions ------------------------------------------------------ */
+clip('hurt', .26, [
+  [0,{}],
+  [.22,{t:-.30,hd:-.30,aLu:.6,aLf:1.4,aRu:.9,aRf:1.2,l:-4}],
+  [1,{}]
+], { lunge:-14 });
+clip('hurtHeavy', .46, [
+  [0,{}],
+  [.18,{t:-.48,hd:-.45,aLu:-.3,aLf:.8,aRu:-.1,aRf:.7,b:8,l:-10}],
+  [.60,{t:-.20,hd:-.20,b:4}],
+  [1,{}]
+], { lunge:-30 });
+clip('knockdown', .78, [
+  [0,{t:-.3,hd:-.3,b:6}],
+  [.24,{t:-.6,r:-.55,b:-6,lRu:.9,lRf:-1.0,lLu:-.5,lLf:-.4,hd:-.4}],
+  [.50,{r:-1.45,b:0,lRu:.5,lRf:-.6,lLu:-.3,lLf:-.3,aLu:-.6,aRu:-.5}],
+  [.78,{r:-1.52,aLu:-.8,aRu:-.7,hd:.1}],
+  [1,{r:-1.52,aLu:-.8,aRu:-.7,hd:.1}]
+], { lunge:-34 });
+clip('getup', .80, [
+  [0,{r:-1.52,aLu:-.8,aRu:-.7}],
+  [.34,{r:-.9,b:24,aLu:.2,aRu:.4,lLu:-1.2,lLf:-1.4,lRu:1.2,lRf:-1.6}],
+  [.70,{r:-.20,b:16,t:.4,lLu:-.8,lLf:-1.0,lRu:.9,lRf:-1.2}],
+  [1,{}]
+]);
+
+/* ---- combos --------------------------------------------------------- */
+clip('comboA', .82, [
+  [0,{}],
+  [.14,{t:.16,aRu:1.45,aRf:.12,l:6}],
+  [.30,{t:.30,aLu:1.50,aLf:.06,aRu:.95,aRf:1.7,l:10}],
+  [.50,{t:.05,aRu:1.20,aRf:1.25,l:4}],
+  [.66,{t:.28,aRu:1.78,aRf:.85,l:12,hd:.15}],
+  [1,{}]
+], { lunge:26, hits:[
+  { t:.16, dmg:4, reach:84, knock:70,  type:'light' },
+  { t:.32, dmg:6, reach:90, knock:110, type:'light' },
+  { t:.66, dmg:9, reach:84, knock:220, type:'mid'   }
+]});
+
+clip('comboB', .90, [
+  [0,{}],
+  [.16,{t:-.10,lRu:1.10,lRf:-1.40,lLu:-.18,lLf:-.14,b:-3}],
+  [.32,{t:-.24,lRu:1.55,lRf:-.20,lLu:-.14,lLf:-.12}],
+  [.50,{t:.10,lRu:.5,lRf:-.6,aRu:1.1,aRf:1.4}],
+  [.70,{t:.36,aRu:1.80,aRf:.30,l:12,hd:.16}],
+  [1,{}]
+], { lunge:32, hits:[
+  { t:.32, dmg:9,  reach:104, knock:180, type:'mid'   },
+  { t:.70, dmg:12, reach:90,  knock:280, type:'heavy' }
+]});
+
+clip('finisher', 1.20, [
+  [0,{t:.05}],
+  [.18,{t:-.20,r:-.28,lRu:1.50,lRf:-.40,lLu:-.30,lLf:-.14,b:-3}],
+  [.36,{t:-.34,r:-.58,lRu:1.70,lRf:-.20,lLu:-.35,lLf:-.10}],
+  [.58,{t:.18,r:-.10,lRu:.5,lRf:-.6,b:8}],
+  [.78,{t:-.16,aRu:2.45,aRf:.50,b:-8,l:10,hd:-.16}],
+  [1,{}]
+], { lunge:34, hits:[
+  { t:.36, dmg:13, reach:112, knock:300, type:'heavy' },
+  { t:.78, dmg:18, reach:84,  knock:420, type:'heavy' }
+]});
+
+/* ===================== KAGE SPECIALS — power ========================= */
+clip('kagePound', 1.00, [
+  [0,{b:20,t:.22,lRu:.7,lRf:-1.4,lLu:-.5,lLf:-1.1,aLu:-.3,aRu:-.2}],
+  [.18,{b:-8,t:.05,lRu:.4,lRf:-.9,lLu:-.2,lLf:-.8,aLu:-1.6,aRu:-1.6}],
+  [.38,{b:-6,t:-.05,lRu:.3,lRf:-.6,lLu:-.1,lLf:-.6,aLu:-2.4,aRu:-2.4}],
+  [.56,{b:18,t:.30,lRu:1.0,lRf:-1.2,lLu:-.4,lLf:-.9,aLu:1.4,aRu:1.4}],
+  [.72,{b:22,t:.36,aLu:1.7,aRu:1.7}],
+  [1,{}]
+], { air:true, events:[[.50,(f)=>{f.vy=1750;f.slamArmed=true;}]], hits:[] });
+
+clip('kageCharged', 1.05, [
+  [0,{t:-.05}],
+  [.30,{t:-.28,b:10,aRu:-.55,aRf:1.05,aLu:-.35,aLf:1.2,hd:-.14}],
+  [.55,{t:-.34,b:12,aRu:-.60,aRf:1.00,aLu:-.40,aLf:1.15,hd:-.16}],
+  [.74,{t:.48,b:-4,aRu:1.82,aRf:.15,aLu:.55,aLf:1.9,l:18,hd:.20}],
+  [1,{}]
+], { lunge:26, hits:[{t:.74,dmg:22,reach:104,knock:520,type:'heavy',color:'#ff7a2f'}] });
+
+clip('kageGrabSlam', 1.10, [
+  [0,{t:.16,aRu:1.40,aRf:.20,aLu:1.35,aLf:.25}],
+  [.20,{t:-.34,b:18,aRu:2.35,aRf:.35,aLu:2.25,aLf:.40}],
+  [.46,{t:-1.05,b:-14,r:-.40,aRu:3.00,aRf:.15,aLu:2.90,aLf:.20}],
+  [.68,{t:.60,b:24,r:-.05,aRu:1.4,aRf:.7}],
+  [1,{}]
+], { lunge:34, hits:[{t:.46,dmg:20,reach:92,knock:560,type:'grapple',color:'#ff7a2f'}] });
+
+/* ===================== LUMA SPECIALS — speed ========================= */
+clip('lumaBlink', .62, [
+  [0,{b:10,t:.24}],
+  [.20,{b:-4,t:.40,r:.20,lRu:.9,lRf:-1.6,lLu:-.5,lLf:-1.5}],
+  [.42,{t:-.32,r:-.30,lRu:1.60,lRf:-.30,lLu:-.30,lLf:-.10}],
+  [.62,{t:-.10,lRu:.9,lRf:-.9}],
+  [1,{}]
+], { invuln:true,
+     events:[[.20,(f,o)=>{
+        if(!o) return;
+        FX.after.push({x:f.x, y:f.y, h:f.height, c:f.color, o:f.halo, life:.42, max:.42});
+        f.x = o.x + (f.facing > 0 ? -68 : 68);
+        f.facing = o.x > f.x ? 1 : -1;
+        ring(f.x, -f.height*.55, '#4fc3ff', 70, 3);
+        spark(f.x, -f.height*.55, 12, '#4fc3ff', 1);
+     }]],
+     hits:[{t:.42,dmg:11,reach:86,knock:230,type:'mid',color:'#4fc3ff'}] });
+
+clip('lumaStorm', 1.00, [
+  [0,{}],
+  [.10,{t:.14,lRu:.9,lRf:-1.3,lLu:-.4,lLf:-.9,b:-4}],
+  [.22,{t:-.16,lRu:1.55,lRf:-.25,lLu:-.20,lLf:-.12}],
+  [.34,{t:.14,lRu:.9,lRf:-1.3,lLu:-.4,lLf:-.9,b:-4}],
+  [.46,{t:-.16,lRu:1.55,lRf:-.25,lLu:-.20,lLf:-.12}],
+  [.58,{t:.14,lRu:.9,lRf:-1.3,lLu:-.4,lLf:-.9,b:-4}],
+  [.72,{t:-.22,r:-.30,lRu:1.62,lRf:-.20,lLu:-.30,lLf:-.12}],
+  [1,{}]
+], { lunge:22, hits:[
+  { t:.22, dmg:5,  reach:96,  knock:80,  type:'light', color:'#4fc3ff' },
+  { t:.46, dmg:5,  reach:96,  knock:80,  type:'light', color:'#4fc3ff' },
+  { t:.72, dmg:12, reach:108, knock:300, type:'heavy', color:'#4fc3ff' }
+]});
+
+clip('lumaPhase', .58, [
+  [0,{b:8,t:.20}],
+  [.22,{b:-2,t:.42,r:.18,lRu:.8,lRf:-1.5,lLu:-.4,lLf:-1.4}],
+  [.46,{b:-2,t:.30,r:.05,lRu:.9,lRf:-1.2,lLu:-.3,lLf:-1.1}],
+  [1,{}]
+], { invuln:true, lunge:190,
+     events:[[.30,(f)=>{
+        for(let i=0;i<4;i++)
+          FX.after.push({ x:f.x - f.facing*i*26, y:f.y, h:f.height,
+                          c:f.color, o:f.halo, life:.34+i*.04, max:.34+i*.04 });
+     }]],
+     hits:[] });
+
+/* ---------------------------------------------------------- attack pools */
+const KAGE_ATTACKS = [
+  'jab','cross','hook','overhand','uppercut','bodyShot','elbow',
+  'frontKick','roundhouse','lowKick','highKick','axeKick','backKick',
+  'knee','comboA','finisher'
+];
+const LUMA_ATTACKS = [
+  'jab','cross','hook','bodyShot','frontKick','lowKick','highKick',
+  'spinKick','flyingKick','roundhouse','comboA','comboB','finisher'
+];
+const GRAPPLES = ['throw','suplex'];
+const DEFENSES = ['blockHigh','blockLow','slip','duck','backflip','slide'];
+
+/* --------------------------------------------------------------- roster */
+const ROSTER = [
+  {
+    name:'KAGE',
+    color:'#000000',
+    halo:null,          // pure black — visible on white by itself
+    haloDark:'#d8d8d8', // on dark stages KAGE gets a light rim
+    hpMax:120, power:1.28, speedMul:0.90,
+    attacks:KAGE_ATTACKS,
+    specials:['kagePound','kageCharged','kageGrabSlam'],
+    sparkColor:'#ff8a2b'
+  },
+  {
+    name:'LUMA',
+    color:'#ffffff',
+    halo:'#000000',     // white body — always wears a thick black rim
+    haloDark:'#000000',
+    hpMax:100, power:0.96, speedMul:1.14,
+    attacks:LUMA_ATTACKS,
+    specials:['lumaBlink','lumaStorm','lumaPhase'],
+    sparkColor:'#4fc3ff'
+  }
+];
+
+/* ------------------------------------------------------------- skeleton */
+function skeleton(f){
+  const P = f.pose, h = f.height;
+  const torsoLen = .30*h, neckLen = .045*h, headR = .085*h;
+  const upperArm = .165*h, foreArm = .155*h;
+  const thigh = .235*h, shin = .235*h;
+  const hipY = -.46*h;
+
+  const pel = { x:0, y:hipY };
+  const tA  = P.t;
+  const sh  = { x:pel.x + Math.sin(tA)*torsoLen, y:pel.y - Math.cos(tA)*torsoLen };
+  const hA  = tA + P.hd;
+  const nk  = { x:sh.x + Math.sin(hA)*neckLen, y:sh.y - Math.cos(hA)*neckLen };
+  const head= { x:nk.x + Math.sin(hA)*headR*1.05, y:nk.y - Math.cos(hA)*headR*1.05 };
+
+  const perp = { x:Math.cos(tA), y:Math.sin(tA) };
+  const shL = { x:sh.x + perp.x*2.5, y:sh.y + perp.y*2.5 };
+  const shR = { x:sh.x - perp.x*2.5, y:sh.y - perp.y*2.5 };
+
+  const elL = add(shL, dirD(P.aLu), upperArm);
+  const haL = add(elL, dirD(P.aLu + P.aLf), foreArm);
+  const elR = add(shR, dirD(P.aRu), upperArm);
+  const haR = add(elR, dirD(P.aRu + P.aRf), foreArm);
+
+  const hiL = { x:pel.x + Math.cos(tA)*2.5, y:pel.y };
+  const hiR = { x:pel.x - Math.cos(tA)*2.5, y:pel.y };
+  const knL = add(hiL, dirD(P.lLu), thigh);
+  const ftL = add(knL, dirD(P.lLu + P.lLf), shin);
+  const knR = add(hiR, dirD(P.lRu), thigh);
+  const ftR = add(knR, dirD(P.lRu + P.lRf), shin);
+
+  return { pel, sh, head, headR, elL, haL, elR, haR,
+           knL, ftL, knR, ftR, hiL, hiR };
+}
+
+/* --------------------------------------------------------------- effects */
+const FX = { parts:[], rings:[], texts:[], after:[] };
+
+function spark(x, y, n, color, power){
+  power = power || 1;
+  for (let i = 0; i < n; i++){
+    const a = rand(0, Math.PI*2), sp = rand(90, 540)*power;
+    FX.parts.push({
+      x, y,
+      vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - rand(30, 190),
+      life: rand(.16,.44), max:.44,
+      size: rand(1.8, 4.6), color, grav: 900, type:'spark'
+    });
+  }
+  FX.parts.push({ x, y, vx:0, vy:0, life:.10, max:.10,
+                  size: 13*power, color:'#ffffff', grav:0, type:'core' });
+}
+function dust(x, y, n, dir){
+  for (let i = 0; i < n; i++){
+    FX.parts.push({
+      x: x + rand(-18,18), y: y - rand(0,12),
+      vx: rand(-100,100) + (dir||0)*40, vy: -rand(20,140),
+      life: rand(.35,.85), max:.85,
+      size: rand(2,6.5), color:'#c9c9c4', grav: 140, type:'dust'
+    });
+  }
+}
+function ring(x, y, color, maxR, w, speed){
+  FX.rings.push({ x, y, r:6, maxR: maxR||90, life: speed||.34, max: speed||.34,
+                  color: color||'#000', w: w||3 });
+}
+function textPop(x, y, str, color, size){
+  FX.texts.push({ x, y, str, life:.78, max:.78, color: color||'#000', size: size||18 });
+}
+function shockwave(x, y){
+  ring(x, y, '#000', 280, 5, .48);
+  ring(x, y, '#ff8a2b', 200, 3, .40);
+  dust(x, y, 22, 0);
+}
+
+function updateFX(dt){
+  for (let i = FX.parts.length-1; i >= 0; i--){
+    const p = FX.parts[i];
+    p.life -= dt;
+    if (p.life <= 0){ FX.parts.splice(i,1); continue; }
+    p.vy += p.grav*dt;
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    p.vx *= Math.exp(-2.4*dt);
+  }
+  for (let i = FX.rings.length-1; i >= 0; i--){
+    const r = FX.rings[i];
+    r.life -= dt;
+    if (r.life <= 0){ FX.rings.splice(i,1); continue; }
+    r.r = 6 + (r.maxR-6)*easeOut(1 - r.life/r.max);
+  }
+  for (let i = FX.texts.length-1; i >= 0; i--){
+    const t = FX.texts[i];
+    t.life -= dt; t.y -= 46*dt;
+    if (t.life <= 0) FX.texts.splice(i,1);
+  }
+  for (let i = FX.after.length-1; i >= 0; i--){
+    const a = FX.after[i];
+    a.life -= dt;
+    if (a.life <= 0) FX.after.splice(i,1);
+  }
+}
+
+function drawFX(){
+  // afterimages
+  for (const a of FX.after){
+    const al = a.life / a.max;
+    ctx.save();
+    ctx.globalAlpha = al * .32;
+    ctx.strokeStyle = a.c;
+    ctx.lineWidth = Math.max(4, a.h * .05);
+    ctx.lineCap = 'round';
+    // silhouette: torso, head ring
+    ctx.beginPath();
+    ctx.moveTo(0, -a.h*.46); ctx.lineTo(0, -a.h*.76);
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, -a.h*.86, a.h*.085, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
+  // rings
+  for (const r of FX.rings){
+    const a = r.life / r.max;
+    ctx.globalAlpha = a * .85;
+    ctx.strokeStyle = r.color;
+    ctx.lineWidth = Math.max(.5, r.w * a);
+    ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI*2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  // particles
+  for (const p of FX.parts){
+    const a = clamp(p.life / p.max, 0, 1);
+    if (p.type === 'core'){
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size*(2-a));
+      g.addColorStop(0, 'rgba(255,255,255,' + (a*.95).toFixed(2) + ')');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size*(2-a), 0, Math.PI*2); ctx.fill();
+    } else if (p.type === 'spark'){
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = p.size * a;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x - p.vx*.016, p.y - p.vy*.016); ctx.stroke();
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size*a*.55, 0, Math.PI*2); ctx.fill();
+    } else {
+      ctx.globalAlpha = a * .30;
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size*(1.7-a*.7), 0, Math.PI*2); ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+  // pop text
+  for (const t of FX.texts){
+    const a = t.life / t.max;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = t.color;
+    ctx.font = '900 ' + t.size + 'px -apple-system,"Segoe UI",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(t.str, t.x, t.y);
+  }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'start';
+}
+
+/* ---------------------------------------------------------------- fighter */
+let UID = 0;
+
+class Fighter {
+  constructor(x, roster){
+    this.id = ++UID;
+    this.r = roster;
+    this.x = x; this.y = 0;
+    this.vx = 0; this.vy = 0;
+    this.height = 210 * cfg.size;
+    this.facing = x < 0 ? 1 : -1;
+    this.color = roster.color;
+    this.halo  = roster.halo;
+
+    this.hpMax = roster.hpMax;
+    this.hp = roster.hpMax;
+
+    this.pose = Object.assign({}, BASE);
+    this.blendFrom = Object.assign({}, BASE);
+    this.blendT = 1;
+
+    this.clip = CLIPS.idle;
+    this.clipT = 0; this.prevP = 0;
+    this.hitIndex = 0; this.events = [];
+    this.state = 'idle';
+    this.invuln = 0;
+    this.blocking = false;
+    this.onEnd = null;
+
+    this.lastAttacks = [];
+    this.cool = rand(.10, .50);
+    this.specialCd = rand(2.6, 5.4);
+    this.slamArmed = false;
+
+    this.trail = [];
+    this.flash = 0;
+  }
+
+  startClip(id, opt){
+    const c = CLIPS[id] || CLIPS.idle;
+    this.blendFrom = Object.assign({}, this.pose);
+    this.blendT = 0;
+    this.clip = c;
+    this.clipT = 0; this.prevP = 0;
+    this.hitIndex = 0;
+    this.events = c.events.map(e => ({ t:e[0], fn:e[1] }));
+    this.blocking = (id === 'blockHigh' || id === 'blockLow');
+    this.state = (opt && opt.state) || 'act';
+    this.onEnd = (opt && opt.onEnd) || null;
+    if (c.invuln) this.invuln = Math.max(this.invuln, c.dur * 1.05);
+    if (c.air && this.y >= -1) this.vy = -640 * Math.sqrt(cfg.gravity);
+  }
+
+  updatePose(dt){
+    const c = this.clip;
+    const p = clamp(this.clipT / c.dur, 0, 1);
+    const keys = c.keys;
+    let a = keys[0], b = keys[keys.length-1];
+    for (let i = 0; i < keys.length-1; i++){
+      if (p >= keys[i].t && p <= keys[i+1].t){ a = keys[i]; b = keys[i+1]; break; }
+    }
+    const lt = easeInOut(clamp((p - a.t) / Math.max(1e-6, b.t - a.t), 0, 1));
+    const np = {};
+    for (const k in BASE) np[k] = a.p[k] + (b.p[k] - a.p[k]) * lt;
+
+    if (this.blendT < 1){
+      this.blendT = Math.min(1, this.blendT + dt / .075);
+      const bt = easeInOut(this.blendT);
+      for (const k in BASE) np[k] = this.blendFrom[k] + (np[k] - this.blendFrom[k]) * bt;
+    }
+    this.pose = np;
+  }
+
+  update(dt, opp, world){
+    this.invuln = Math.max(0, this.invuln - dt);
+    this.flash  = Math.max(0, this.flash - dt*4);
+    this.cool   = Math.max(0, this.cool - dt);
+    this.specialCd = Math.max(0, this.specialCd - dt);
+
+    if (opp && (this.state === 'idle' || this.state === 'walk') && this.y >= -1){
+      this.facing = opp.x > this.x ? 1 : -1;
+    }
+
+    this.clipT += dt * (this.r.speedMul || 1);
+    const c = this.clip;
+    const p = clamp(this.clipT / c.dur, 0, 1);
+
+    if (c.lunge){
+      const d = (easeOut(p) - easeOut(this.prevP)) * c.lunge;
+      this.x += this.facing * d;
+    }
+    this.prevP = p;
+
+    for (let i = this.events.length-1; i >= 0; i--){
+      if (p >= this.events[i].t){
+        const ev = this.events.splice(i,1)[0];
+        ev.fn(this, opp);
+      }
+    }
+
+    if (opp && c.hits.length && this.hitIndex < c.hits.length && p >= c.hits[this.hitIndex].t){
+      const h = c.hits[this.hitIndex++];
+      resolveHit(this, opp, h);
+    }
+
+    if (p >= 1 && !c.loop){
+      const oe = this.onEnd;
+      this.onEnd = null;
+      if (oe) oe(); else this.startClip('idle', { state:'idle' });
+    }
+
+    // physics
+    this.vy += GRAV() * dt;
+    this.y += this.vy * dt;
+    if (this.y >= 0){
+      if (this.slamArmed){
+        this.slamArmed = false;
+        this.onSlam(opp);
+      } else if (this.vy > 280 && this.state !== 'down'){
+        dust(this.x, 0, 6, 0);
+      }
+      this.y = 0;
+      if (this.vy > 0) this.vy = 0;
+    }
+    this.x += this.vx * dt;
+    this.vx *= Math.exp(-5.2*dt);
+
+    const half = world.half;
+    if (this.x < -half){ this.x = -half; this.vx = Math.abs(this.vx)*.4; }
+    if (this.x >  half){ this.x =  half; this.vx = -Math.abs(this.vx)*.4; }
+
+    this.updatePose(dt);
+
+    // limb trail
+    if (this.state === 'act' && c.hits.length){
+      const sk = skeleton(this);
+      const pt = c.hits[0].reach > 90 ? sk.ftR : sk.haR;
+      this.trail.push({ x:this.x + this.facing*pt.x, y:this.y + pt.y, a:1 });
+      if (this.trail.length > 10) this.trail.shift();
+    }
+    for (let i = this.trail.length-1; i >= 0; i--){
+      this.trail[i].a -= dt*4.2;
+      if (this.trail[i].a <= 0) this.trail.splice(i,1);
+    }
+  }
+
+  onSlam(opp){
+    shockwave(this.x, 0);
+    cam.shake = Math.max(cam.shake, 26);
+    cam.zoomPunch = Math.max(cam.zoomPunch, .22);
+    slowmo = Math.max(slowmo, .30);
+    textPop(this.x, -this.height*.95, 'QUAKE', '#000', 22);
+    if (opp && Math.abs(opp.x - this.x) < 300 && opp.y > -140){
+      const dmg = 18 * this.r.power * cfg.intensity;
+      opp.hp = Math.max(0, opp.hp - dmg);
+      opp.flash = 1;
+      opp.vx = Math.sign(opp.x - this.x || 1) * 420;
+      opp.vy = -540 * Math.sqrt(cfg.gravity);
+      HIT_COUNT++;
+      spark(opp.x, -opp.height*.5, 20, this.r.sparkColor, 1.3);
+      knockDownOrHurt(opp, dmg);
+    }
+  }
+
+  /* ------------------------------------------------------ the look --- */
+  draw(){
+    const h = this.height;
+    const P = this.pose;
+    const sk = skeleton(this);
+
+    let dy = 0;
+    if (this.y > -1 && Math.abs(P.r) < .05){
+      const lowest = Math.max(sk.ftL.y, sk.ftR.y);
+      if (lowest > 0) dy = -lowest;
+    }
+
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.scale(this.facing, 1);
+    ctx.rotate(P.r);
+    ctx.translate(P.l, P.b + dy);
+
+    const lw = Math.max(5, h * .058);   // thick!
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Determine halo: LUMA always black rim. KAGE rim only on dark stages.
+    const darkStage = cfg.bg === 'black' || cfg.bg === 'arena'
+                   || cfg.bg === 'rooftop' || cfg.bg === 'dojo';
+    const haloCol = this.r.halo
+      || (darkStage ? this.r.haloDark : null);
+
+    const glowing = this.flash > 0;
+    const mainCol = glowing ? '#ffd24a' : this.color;
+    const backCol = glowing ? '#ffd24a' : shade(this.color,
+                       this.color === '#ffffff' ? -.15 : .22);
+
+    // trail (behind everything)
+    if (this.trail.length > 1){
+      for (let i = 1; i < this.trail.length; i++){
+        const a = this.trail[i].a;
+        if (a <= 0) continue;
+        ctx.strokeStyle = withAlpha(this.r.sparkColor, a*.35);
+        ctx.lineWidth = lw * a * 1.5;
+        ctx.beginPath();
+        ctx.moveTo(this.trail[i-1].x - this.x, this.trail[i-1].y - this.y);
+        ctx.lineTo(this.trail[i].x   - this.x, this.trail[i].y   - this.y);
+        ctx.stroke();
+      }
+    }
+
+    // bone drawer
+    const bone = (a, b, w, col) => {
+      if (haloCol){
+        ctx.strokeStyle = haloCol;
+        ctx.lineWidth = w + lw * 1.55;
+        ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+      }
+      ctx.strokeStyle = col;
+      ctx.lineWidth = w;
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    };
+
+    // BACK limbs first
+    bone(sk.hiL, sk.knL, lw*.94, backCol);
+    bone(sk.knL, sk.ftL, lw*.94, backCol);
+    bone(sk.shL, sk.elL, lw*.90, backCol);
+    bone(sk.elL, sk.haL, lw*.90, backCol);
+
+    // TORSO (slightly heavier)
+    bone(sk.pel, sk.sh, lw*1.16, mainCol);
+    bone(sk.hiL, sk.hiR, lw*.82, mainCol);   // hip bar
+    bone(sk.sh, sk.head, lw*.78, mainCol);   // neck
+
+    // FRONT limbs
+    bone(sk.hiR, sk.knR, lw, mainCol);
+    bone(sk.knR, sk.ftR, lw, mainCol);
+    bone(sk.shR, sk.elR, lw, mainCol);
+    bone(sk.elR, sk.haR, lw, mainCol);
+
+    // HEAD — unfilled ring with small gap on the front-right
+    const a0 = 0.30, a1 = Math.PI*2 - 0.18;
+    if (haloCol){
+      ctx.strokeStyle = haloCol;
+      ctx.lineWidth = lw*1.05 + lw*1.55;
+      ctx.beginPath(); ctx.arc(sk.head.x, sk.head.y, sk.headR, a0, a1); ctx.stroke();
+    }
+    ctx.strokeStyle = mainCol;
+    ctx.lineWidth = lw*1.05;
+    ctx.beginPath(); ctx.arc(sk.head.x, sk.head.y, sk.headR, a0, a1); ctx.stroke();
+
+    // joint caps at hand + foot for that chunky reference feel
+    const dot = (p, r, col) => {
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI*2); ctx.fill();
+    };
+    if (haloCol){
+      dot(sk.haR, lw*.55 + lw*.8, haloCol);
+      dot(sk.ftR, lw*.55 + lw*.8, haloCol);
+    }
+    dot(sk.haR, lw*.55, mainCol);
+    dot(sk.ftR, lw*.55, mainCol);
+
+    ctx.restore();
+
+    // ground shadow (world-space, unmirrored)
+    const sc = clamp(1 - Math.abs(this.y)/340, .25, 1);
+    ctx.globalAlpha = .16 * sc;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(this.x, 0, h*.26*sc, h*.048*sc, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function shade(hex, amt){
+  const n = parseInt(hex.slice(1), 16);
+  let r = (n>>16)&255, g = (n>>8)&255, b = n&255;
+  r = clamp(Math.round(r + 255*amt), 0, 255);
+  g = clamp(Math.round(g + 255*amt), 0, 255);
+  b = clamp(Math.round(b + 255*amt), 0, 255);
+  return '#' + ((r<<16)|(g<<8)|b).toString(16).padStart(6,'0');
+}
+function withAlpha(hex, a){
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+
+/* --------------------------------------------------------------- combat */
+let HIT_COUNT = 0, KO_COUNT = 0;
+let hitstop = 0;
+let score = [0, 0];
+let round = 1;
+
+function resolveHit(att, def, h){
+  if (!def) return;
+  if (def.state === 'down' || def.state === 'getup') return;
+
+  const reach = h.reach * (att.height / 210);
+  const d = Math.abs(def.x - att.x);
+  const toward = Math.sign(def.x - att.x) === Math.sign(att.facing);
+  if (!toward || d > reach) return;
+
+  const cx = (att.x + def.x)*.5;
+  const cy = -def.height*.62;
+  const color = h.color || att.r.sparkColor;
+
+  if (def.invuln > 0){
+    ring(def.x, cy, '#88cfff', 54, 2, .26);
+    spark(cx, cy, 4, '#88cfff', .5);
+    return;
+  }
+
+  if (def.blocking && def.state === 'act'){
+    def.hp = Math.max(0, def.hp - h.dmg*.10);
+    def.vx = Math.sign(def.x - att.x || 1) * 120;
+    spark(cx, cy, 14, '#88cfff', .85);
+    ring(cx, cy, '#88cfff', 66, 2.5, .26);
+    cam.shake = Math.max(cam.shake, 5);
+    textPop(cx, cy - 22, 'BLOCK', '#3d7fae', 13);
+    att.vx = -att.facing * 80;
+    return;
+  }
+
+  HIT_COUNT++;
+  const dmg = h.dmg * att.r.power * (.85 + cfg.intensity*.15);
+  def.hp = Math.max(0, def.hp - dmg);
+  def.flash = 1;
+
+  const kdir = Math.sign(def.x - att.x) || att.facing;
+  const heavy = h.type === 'heavy' || h.type === 'grapple';
+  def.vx = kdir * h.knock * (att.r.power*.5 + .5);
+  if (h.type === 'grapple') def.vy = -560 * Math.sqrt(cfg.gravity);
+
+  spark(cx, cy, heavy ? 30 : 16, color, heavy ? 1.6 : 1);
+  spark(cx, cy, heavy ? 14 : 8, '#ffffff', heavy ? 1.2 : .8);
+  ring(cx, cy, color, heavy ? 140 : 76, heavy ? 4.5 : 2.5, heavy ? .40 : .28);
+  cam.shake = Math.max(cam.shake, heavy ? 18 : 8);
+  cam.zoomPunch = Math.max(cam.zoomPunch, heavy ? .17 : .08);
+
+  if (heavy){
+    hitstop = .058;
+    slowmo = Math.max(slowmo, .17);
+    textPop(cx, cy - 30, h.dmg >= 15 ? 'CRITICAL' : 'HIT', '#000', 18);
+  }
+
+  if (def.hp <= 0){
+    const idx = fighters.indexOf(def);
+    const rival = idx === 0 ? 1 : 0;
+    score[rival]++;
+    KO_COUNT++;
+    round++;
+    textPop(def.x, -def.height*1.10, 'K.O.', '#d81d3a', 34);
+    banner('K.O.');
+    cam.shake = 30; cam.zoomPunch = .28; slowmo = .65;
+    def.hp = def.hpMax;
+    def.startClip('knockdown', { state:'down', onEnd: () => {
+      def.startClip('getup', { state:'getup', onEnd: () => {
+        def.startClip('idle', { state:'idle' });
+        banner('ROUND ' + round);
+      }});
+    }});
+    return;
+  }
+
+  knockDownOrHurt(def, dmg);
+}
+
+function knockDownOrHurt(def, dmg){
+  if (dmg >= 14 || (dmg >= 9 && Math.random() < .38)){
+    def.startClip('knockdown', { state:'down', onEnd: () => {
+      def.startClip('getup', { state:'getup', onEnd: () => def.startClip('idle', { state:'idle' }) });
+    }});
+  } else {
+    def.startClip(dmg >= 8 ? 'hurtHeavy' : 'hurt', {
+      state:'hurt',
+      onEnd: () => { def.cool = rand(.02,.10); def.startClip('idle', { state:'idle' }); }
+    });
+  }
+}
+
+/* --------------------------------------------------------------- director */
+function think(f, opp){
+  if (!opp || f.cool > 0) return;
+  if (f.state !== 'idle' && f.state !== 'walk') return;
+
+  const d = Math.abs(opp.x - f.x);
+  const oppAttacking = opp.state === 'act' && opp.clip.hits.length > 0;
+
+  // special window
+  if (f.specialCd <= 0 && Math.random() < .30 * cfg.rate){
+    const sp = pick(f.r.specials);
+    let ok = true;
+    if (sp === 'kagePound' && d > 300) ok = false;
+    if ((sp === 'lumaBlink' || sp === 'kageGrabSlam') && d > 240) ok = false;
+    if (sp === 'lumaPhase' && d > 220) ok = false;
+    if (ok){
+      f.specialCd = rand(4.5, 9.5) / Math.max(.4, cfg.rate);
+      f.startClip(sp, {
+        state:'act',
+        onEnd: () => { f.cool = rand(.08,.24); f.startClip('idle', { state:'idle' }); }
+      });
+      return;
+    }
+  }
+
+  // defensive read
+  if (oppAttacking && d < 175 && Math.random() < .66 * clamp(cfg.intensity,.3,2)){
+    const r = Math.random();
+    if (r < .40){
+      f.startClip(Math.random() < .5 ? 'blockHigh' : 'blockLow', {
+        state:'act',
+        onEnd: () => { f.cool = rand(.05,.18); f.startClip('idle', { state:'idle' }); }
+      });
+    } else if (r < .84){
+      const def = pick(DEFENSES);
+      f.startClip(def, {
+        state:'act',
+        onEnd: () => {
+          f.cool = 0;
+          if (Math.random() < .58 * cfg.intensity && Math.abs(opp.x - f.x) < 160)
+            launchAttack(f, opp, true);
+          else f.startClip('idle', { state:'idle' });
+        }
+      });
+    } else {
+      launchAttack(f, opp, true);
+    }
+    return;
+  }
+
+  // spacing
+  if (d > 215){
+    if (Math.random() < .44 * cfg.rate){
+      f.startClip('dash', { state:'walk',
+        onEnd: () => { f.cool = rand(.02,.12); f.startClip('idle', { state:'idle' }); } });
+    } else {
+      f.startClip('walk', { state:'walk',
+        onEnd: () => { f.cool = rand(0,.07); f.startClip('walk', { state:'walk' }); } });
+    }
+    return;
+  }
+  if (d < 60 && Math.random() < .28){
+    f.startClip('walkBack', { state:'walk',
+      onEnd: () => { f.cool = rand(0,.09); f.startClip('idle', { state:'idle' }); } });
+    return;
+  }
+
+  launchAttack(f, opp, false);
+}
+
+function launchAttack(f, opp, counter){
+  const d = Math.abs(opp.x - f.x);
+  const pool = [];
+  for (const id of f.r.attacks){
+    const c = CLIPS[id];
+    if (!c || !c.hits.length) continue;
+    const reach = c.hits[0].reach;
+    let s = Math.max(0, 100 - Math.abs(reach - d)*1.15);
+    s *= (.4 + Math.random()*1.2) * cfg.rate;
+    const idx = f.lastAttacks.indexOf(id);
+    if (idx >= 0) s *= (idx === f.lastAttacks.length-1 ? .06 : .30);
+    if (counter) s *= 1.9;
+    if (id === 'finisher' && f.hp < f.hpMax*.3) s *= .45;
+    pool.push({ id, s });
+  }
+  if (d < 82){
+    for (const id of GRAPPLES)
+      pool.push({ id, s: (110 - Math.abs(70 - d)) * rand(.5,1.3) * cfg.rate });
+  }
+  pool.sort((a,b) => b.s - a.s
